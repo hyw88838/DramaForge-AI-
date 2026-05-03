@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DramaForge — AI 短剧剧本生成器</title>
+    <meta name="description" content="AI驱动的短剧剧本生成器，一键生成完整短剧剧本，含场景、台词、人物设定">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Noto+Sans+SC:wght@300;400;500;700&family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #06060a;
+            --glass: rgba(255,255,255,0.035);
+            --glass-2: rgba(255,255,255,0.055);
+            --glass-border: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.06);
+
+            --rose: #f43f5e;
+            --rose-light: #fb7185;
+            --rose-glow: rgba(244,63,94,0.1);
+            --pink: #ec4899;
+            --pink-glow: rgba(236,72,153,0.08);
+            --amber: #f59e0b;
+            --amber-glow: rgba(245,158,11,0.08);
+            --violet: #8b5cf6;
+            --violet-glow: rgba(139,92,246,0.08);
+            --cyan: #22d3ee;
+            --cyan-glow: rgba(34,211,238,0.08);
+            --emerald: #34d399;
+            --emerald-glow: rgba(52,211,153,0.08);
+
+            --text: #e8e4dc;
+            --text-2: rgba(232,228,220,0.55);
+            --text-3: rgba(232,228,220,0.3);
+            --text-4: rgba(232,228,220,0.15);
+            --success: #34d399;
+            --danger: #f43f5e;
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'DM Sans', 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.015;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .amb { position: fixed; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; }
+        .amb-1 { width: 700px; height: 700px; background: rgba(244,63,94,0.06); top: -300px; left: -200px; }
+        .amb-2 { width: 500px; height: 500px; background: rgba(236,72,153,0.04); top: 40%; right: -250px; }
+        .amb-3 { width: 400px; height: 400px; background: rgba(139,92,246,0.03); bottom: -150px; left: 25%; }
+
+        /* ── NAV ── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 1000;
+            padding: 0 clamp(16px, 4vw, 48px);
+            height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(6,6,10,0.65);
+            backdrop-filter: blur(24px) saturate(1.4);
+            -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-logo {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800; font-size: 19px;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            text-decoration: none;
+        }
+        .nav-logo em { font-style: normal; color: var(--rose); }
+        .nav-right { display: flex; align-items: center; gap: 8px; }
+        .nav-pill {
+            font-size: 13px; font-weight: 500;
+            color: var(--text-2);
+            text-decoration: none;
+            padding: 7px 16px; border-radius: 100px;
+            transition: all 0.2s;
+        }
+        .nav-pill:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .nav-cta {
+            padding: 8px 22px;
+            background: var(--text); color: var(--bg);
+            border: none; border-radius: 100px;
+            font-size: 13px; font-weight: 700;
+            font-family: 'Syne', sans-serif;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .nav-cta:hover { background: var(--rose-light); }
+
+        /* ── HERO ── */
+        .hero {
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center;
+            padding: 120px clamp(16px, 5vw, 80px) 60px;
+            position: relative; z-index: 1;
+        }
+        .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 6px 16px 6px 12px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            font-size: 12px; font-weight: 500;
+            color: var(--text-2);
+            margin-bottom: 36px;
+            animation: fadeDown .8s ease forwards;
+        }
+        .hero-eyebrow .dot {
+            width: 7px; height: 7px;
+            background: var(--success);
+            border-radius: 50%;
+            position: relative;
+        }
+        .hero-eyebrow .dot::after {
+            content: '';
+            position: absolute; inset: -3px;
+            border-radius: 50%;
+            border: 1px solid var(--success);
+            animation: ping 2s ease infinite;
+        }
+        .hero h1 {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: clamp(42px, 7.5vw, 88px);
+            line-height: 0.95;
+            letter-spacing: -0.045em;
+            margin-bottom: 28px;
+            animation: fadeUp 1s ease .15s forwards;
+            opacity: 0;
+        }
+        .hero h1 .rose { color: var(--rose); }
+        .hero h1 .pink { color: var(--pink); }
+        .hero h1 .serif {
+            font-family: 'Source Serif 4', serif;
+            font-weight: 300; font-style: italic;
+            color: var(--text-2);
+            font-size: 0.55em;
+            letter-spacing: 0;
+        }
+        .hero-desc {
+            font-size: clamp(15px, 1.5vw, 17px);
+            color: var(--text-2);
+            max-width: 500px; line-height: 1.8;
+            margin-bottom: 40px;
+            animation: fadeUp 1s ease .3s forwards;
+            opacity: 0;
+        }
+        .hero-actions {
+            display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+            animation: fadeUp 1s ease .45s forwards;
+            opacity: 0;
+        }
+        .btn-hero {
+            padding: 15px 32px;
+            border-radius: 100px;
+            font-size: 15px; font-weight: 700;
+            font-family: 'Syne', sans-serif;
+            cursor: pointer; transition: all .3s;
+            border: none; letter-spacing: .01em;
+        }
+        .btn-hero.primary {
+            background: linear-gradient(135deg, var(--rose), var(--pink));
+            color: #fff;
+            box-shadow: 0 4px 32px rgba(244,63,94,0.25);
+        }
+        .btn-hero.primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 48px rgba(244,63,94,0.4);
+        }
+        .btn-hero.ghost {
+            background: var(--glass);
+            color: var(--text-2);
+            border: 1px solid var(--glass-border);
+        }
+        .btn-hero.ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+        .hero-metrics {
+            display: flex; gap: 48px; margin-top: 56px;
+            animation: fadeUp 1s ease .6s forwards;
+            opacity: 0;
+        }
+        .metric { text-align: center; }
+        .metric-val {
+            font-family: 'Syne', sans-serif;
+            font-size: 28px; font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+        .mv-1 { color: var(--rose); }
+        .mv-2 { color: var(--pink); }
+        .mv-3 { color: var(--amber); }
+        .metric-label {
+            font-size: 11px; font-weight: 500;
+            color: var(--text-3);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* ── MARQUEE ── */
+        .marquee {
+            padding: 28px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            position: relative; z-index: 1;
+        }
+        .marquee-track {
+            display: flex; gap: 40px;
+            animation: scroll 25s linear infinite;
+            width: max-content;
+        }
+        .marquee-item {
+            font-family: 'Syne', sans-serif;
+            font-size: 13px; font-weight: 600;
+            color: var(--text-4);
+            white-space: nowrap;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .marquee-item .sep {
+            width: 4px; height: 4px;
+            background: var(--text-4);
+            border-radius: 50%;
+        }
+
+        /* ── FEATURES ── */
+        .features {
+            padding: clamp(80px, 10vw, 140px) clamp(16px, 5vw, 80px);
+            max-width: 1200px; margin: 0 auto;
+            position: relative; z-index: 1;
+        }
+        .sec-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .se-rose { color: var(--rose); }
+        .sec-heading {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(28px, 4vw, 52px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: 64px;
+            max-width: 580px;
+        }
+        .feat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .feat-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px 26px;
+            backdrop-filter: blur(16px);
+            transition: all .5s cubic-bezier(.25,.46,.45,.94);
+            position: relative; overflow: hidden;
+            opacity: 0; transform: translateY(40px);
+        }
+        .feat-card.vis { opacity: 1; transform: translateY(0); }
+        .feat-card::after {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 20px; opacity: 0; transition: opacity .4s;
+        }
+        .feat-card:hover { transform: translateY(-8px) !important; }
+        .feat-card:hover::after { opacity: 1; }
+        .feat-card:nth-child(1)::after { background: linear-gradient(135deg, var(--rose-glow), transparent 60%); }
+        .feat-card:nth-child(2)::after { background: linear-gradient(135deg, var(--pink-glow), transparent 60%); }
+        .feat-card:nth-child(3)::after { background: linear-gradient(135deg, var(--amber-glow), transparent 60%); }
+        .feat-card:nth-child(4)::after { background: linear-gradient(135deg, var(--violet-glow), transparent 60%); }
+        .feat-card:nth-child(5)::after { background: linear-gradient(135deg, var(--cyan-glow), transparent 60%); }
+        .feat-card:nth-child(6)::after { background: linear-gradient(135deg, var(--emerald-glow), transparent 60%); }
+        .feat-inner { position: relative; z-index: 1; }
+        .feat-ic {
+            width: 48px; height: 48px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 18px; font-size: 22px;
+        }
+        .fi-1 { background: var(--rose-glow); border: 1px solid rgba(244,63,94,0.15); }
+        .fi-2 { background: var(--pink-glow); border: 1px solid rgba(236,72,153,0.15); }
+        .fi-3 { background: var(--amber-glow); border: 1px solid rgba(245,158,11,0.15); }
+        .fi-4 { background: var(--violet-glow); border: 1px solid rgba(139,92,246,0.15); }
+        .fi-5 { background: var(--cyan-glow); border: 1px solid rgba(34,211,238,0.15); }
+        .fi-6 { background: var(--emerald-glow); border: 1px solid rgba(52,211,153,0.15); }
+        .feat-card h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px; font-weight: 700;
+            margin-bottom: 8px; letter-spacing: -0.01em;
+        }
+        .feat-card p { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+
+        /* ══════════════════════════════════════
+           APP
+           ══════════════════════════════════════ */
+        .app-section {
+            padding: clamp(60px, 8vw, 120px) clamp(16px, 4vw, 48px) clamp(80px, 10vw, 140px);
+            max-width: 1000px; margin: 0 auto;
+            position: relative; z-index: 1;
+        }
+        .app-header { text-align: center; margin-bottom: 40px; }
+        .app-header h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(28px, 4vw, 48px);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin-bottom: 8px;
+        }
+        .app-header p { color: var(--text-2); font-size: 15px; }
+
+        /* 类型选择 */
+        .genre-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+        .genre-btn {
+            padding: 16px 8px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all .3s;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-2);
+            font-family: inherit;
+        }
+        .genre-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+        .genre-btn.on {
+            border-color: var(--rose);
+            background: var(--rose-glow);
+            color: var(--rose);
+            font-weight: 700;
+        }
+        .genre-btn .gi { font-size: 26px; display: block; margin-bottom: 8px; }
+
+        /* 表单 */
+        .editor-wrap {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: clamp(24px, 3vw, 40px);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .fg { margin-bottom: 22px; }
+        .fl {
+            display: block;
+            font-size: 12px; font-weight: 500;
+            color: var(--text-2);
+            margin-bottom: 8px;
+            letter-spacing: 0.04em;
+        }
+        .fl .req { color: var(--danger); }
+        .fi, .fs, .ft {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text);
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: all .25s;
+        }
+        .fi:focus, .fs:focus, .ft:focus {
+            border-color: var(--rose);
+            box-shadow: 0 0 0 4px var(--rose-glow);
+        }
+        .fi::placeholder, .ft::placeholder { color: var(--text-3); }
+        .ft { resize: vertical; min-height: 80px; }
+        .fs {
+            appearance: none; cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23666' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        .gen-row {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap; gap: 12px;
+            margin-top: 4px;
+        }
+        .price { display: flex; align-items: baseline; gap: 3px; }
+        .price .c { font-size: 14px; color: var(--text-2); }
+        .price .a { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--rose); }
+        .price .u { font-size: 12px; color: var(--text-3); }
+        .trial { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+        .trial b { color: var(--rose); }
+
+        .btn-gen {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, var(--rose), var(--pink));
+            color: #fff; border: none;
+            border-radius: 100px;
+            font-size: 15px; font-weight: 800;
+            font-family: 'Syne', sans-serif;
+            cursor: pointer; transition: all .35s;
+            display: inline-flex; align-items: center; gap: 10px;
+            box-shadow: 0 4px 32px rgba(244,63,94,0.25);
+        }
+        .btn-gen:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 48px rgba(244,63,94,0.4);
+        }
+        .btn-gen:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-gen .sp {
+            display: none; width: 16px; height: 16px;
+            border: 2px solid transparent; border-top: 2px solid #fff;
+            border-radius: 50%; animation: spin .8s linear infinite;
+        }
+        .btn-gen.ld .sp { display: inline-block; }
+        .btn-gen.ld .bt { display: none; }
+        .btn-gen .lt { display: none; }
+        .btn-gen.ld .lt { display: inline; }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed; top: 80px; left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: var(--glass);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 12px 24px; border-radius: 100px;
+            font-size: 13px; font-weight: 500;
+            z-index: 9998; opacity: 0;
+            transition: all .3s; pointer-events: none;
+            white-space: nowrap;
+            backdrop-filter: blur(20px);
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.ok { border-color: var(--success); color: var(--success); }
+
+        /* ── RESULT ── */
+        .result-area { margin-top: 36px; display: none; }
+        .result-area.show { display: block; }
+
+        /* 剧本头部 */
+        .script-header {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .script-header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--rose), var(--pink), var(--amber));
+        }
+        .script-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--rose), var(--pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .script-tagline {
+            font-size: 15px;
+            color: var(--text-2);
+            margin-bottom: 16px;
+            font-style: italic;
+        }
+        .script-synopsis {
+            font-size: 14px;
+            color: var(--text-2);
+            line-height: 1.8;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .script-actions {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .btn-s {
+            padding: 8px 16px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            color: var(--text-2);
+            font-size: 12px; font-weight: 500;
+            font-family: inherit; cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-s:hover { border-color: var(--rose); color: var(--rose); }
+        .btn-s.cp { border-color: var(--success); color: var(--success); }
+
+        /* 人物卡片 */
+        .characters-section {
+            margin-bottom: 24px;
+        }
+        .char-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 16px; font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .char-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 18px;
+            backdrop-filter: blur(12px);
+        }
+        .char-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 15px; font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .char-role {
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        .role-main { background: var(--rose-glow); color: var(--rose); border: 1px solid rgba(244,63,94,0.2); }
+        .role-side { background: var(--cyan-glow); color: var(--cyan); border: 1px solid rgba(34,211,238,0.2); }
+        .role-villain { background: var(--violet-glow); color: var(--violet); border: 1px solid rgba(139,92,246,0.2); }
+        .char-desc { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+
+        /* 分集 */
+        .episode-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 28px;
+            backdrop-filter: blur(16px);
+            margin-bottom: 16px;
+            transition: all .3s;
+        }
+        .episode-card:hover { border-color: rgba(255,255,255,0.12); }
+        .ep-head {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+        }
+        .ep-num {
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px; font-weight: 700;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .epn-rose { background: var(--rose-glow); border: 1px solid rgba(244,63,94,0.25); color: var(--rose); }
+        .epn-pink { background: var(--pink-glow); border: 1px solid rgba(236,72,153,0.25); color: var(--pink); }
+        .epn-amber { background: var(--amber-glow); border: 1px solid rgba(245,158,11,0.25); color: var(--amber); }
+        .epn-violet { background: var(--violet-glow); border: 1px solid rgba(139,92,246,0.25); color: var(--violet); }
+        .epn-cyan { background: var(--cyan-glow); border: 1px solid rgba(34,211,238,0.25); color: var(--cyan); }
+        .ep-title-wrap { display: flex; align-items: center; flex: 1; }
+        .ep-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; }
+        .ep-meta { display: flex; gap: 12px; align-items: center; }
+        .ep-duration {
+            font-size: 11px; color: var(--text-3);
+            padding: 3px 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 100px;
+        }
+        .ep-hook {
+            background: rgba(255,255,255,0.02);
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--amber);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .ep-hook::before { content: '🪝'; flex-shrink: 0; }
+
+        /* 场景 */
+        .scene-block {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 12px;
+        }
+        .scene-setting {
+            font-size: 12px;
+            color: var(--text-3);
+            margin-bottom: 6px;
+            font-style: italic;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .scene-setting::before { content: '🎬'; font-style: normal; }
+        .scene-action {
+            font-size: 13px;
+            color: var(--text-2);
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            border-left: 3px solid var(--rose);
+        }
+        .dialogue-item {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+        .dialogue-item:last-child { border-bottom: none; }
+        .d-char {
+            font-family: 'Syne', sans-serif;
+            font-size: 13px; font-weight: 700;
+            color: var(--rose);
+            text-align: right;
+            padding-top: 2px;
+        }
+        .d-content { }
+        .d-line { font-size: 14px; color: var(--text); line-height: 1.6; }
+        .d-emotion {
+            font-size: 11px; color: var(--text-3);
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        /* ── PAYMENT MODAL ── */
+        .modal-bg {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(16px);
+            z-index: 2000; display: none;
+            align-items: center; justify-content: center;
+        }
+        .modal-bg.show { display: flex; }
+        .modal-box {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 36px 28px;
+            max-width: 400px; width: 90%;
+            text-align: center;
+            animation: scaleUp .35s ease;
+            backdrop-filter: blur(32px);
+            position: relative; overflow: hidden;
+        }
+        .modal-box::before {
+            content: ''; position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--rose), var(--pink), var(--amber));
+        }
+        .modal-ic {
+            width: 52px; height: 52px;
+            border-radius: 50%;
+            background: var(--rose-glow);
+            border: 2px solid rgba(244,63,94,0.25);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; margin: 0 auto 18px;
+        }
+        .modal-box h3 { font-family: 'Syne', sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 6px; }
+        .modal-box > p { font-size: 13px; color: var(--text-2); margin-bottom: 18px; }
+        .qr-box {
+            width: 190px; height: 190px;
+            margin: 0 auto 14px;
+            border-radius: 16px; overflow: hidden;
+            border: 2px solid var(--glass-border);
+            background: rgba(255,255,255,0.02);
+        }
+        .qr-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .qr-err { width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+        .qr-err .qe { font-size: 32px; opacity: .4; }
+        .qr-err span { font-size: 11px; color: var(--text-3); }
+        .modal-price { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; color: var(--rose); margin-bottom: 14px; }
+        .modal-price .y { font-size: 14px; }
+        .pay-note {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px; margin-bottom: 18px;
+        }
+        .pay-note p { font-size: 13px; color: var(--text-2); margin-bottom: 3px; }
+        .pay-note .oid { color: var(--rose); font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: .06em; }
+        .pay-note .ptip { font-size: 11px; color: var(--text-3); }
+        .pay-st { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); min-height: 20px; }
+        .pay-st.ck { color: var(--rose); }
+        .pay-st .cs { width: 14px; height: 14px; border: 2px solid transparent; border-top: 2px solid var(--rose); border-radius: 50%; animation: spin .8s linear infinite; display: none; }
+        .pay-st.ck .cs { display: inline-block; }
+        .btn-pay {
+            width: 100%; padding: 13px;
+            background: #07C160; color: #fff;
+            border: none; border-radius: 14px;
+            font-size: 15px; font-weight: 700;
+            font-family: inherit; cursor: pointer;
+            transition: all .2s; margin-bottom: 10px;
+        }
+        .btn-pay:hover { background: #06ae56; }
+        .btn-pay:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-cancel {
+            width: 100%; padding: 11px;
+            background: transparent; color: var(--text-2);
+            border: 1px solid var(--border); border-radius: 14px;
+            font-size: 13px; font-family: inherit; cursor: pointer;
+            transition: all .2s;
+        }
+        .btn-cancel:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+
+        footer {
+            padding: 48px clamp(16px, 4vw, 48px);
+            text-align: center;
+            border-top: 1px solid var(--border);
+            position: relative; z-index: 1;
+        }
+        footer p { font-size: 11px; color: var(--text-3); letter-spacing: .08em; }
+
+        @keyframes fadeUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes scaleUp { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @keyframes ping { 0% { transform:scale(1); opacity:1; } 100% { transform:scale(2.5); opacity:0; } }
+        @keyframes scroll { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+
+        @media (max-width: 768px) {
+            .nav { height: 56px; padding: 0 14px; }
+            .nav-pill { display: none; }
+            .hero { padding: 100px 16px 50px; }
+            .hero-metrics { gap: 24px; }
+            .metric-val { font-size: 22px; }
+            .feat-grid { grid-template-columns: 1fr; }
+            .genre-grid { grid-template-columns: repeat(2, 1fr); }
+            .form-grid { grid-template-columns: 1fr; }
+            .editor-wrap { padding: 20px; }
+            .gen-row { flex-direction: column; gap: 14px; }
+            .char-grid { grid-template-columns: 1fr; }
+            .dialogue-item { grid-template-columns: 60px 1fr; }
+            .script-header { padding: 24px; }
+            .episode-card { padding: 20px; }
+            .ep-head { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="amb amb-1"></div>
+<div class="amb amb-2"></div>
+<div class="amb amb-3"></div>
+
+<div class="toast" id="toast"></div>
+
+<!-- NAV -->
+<nav class="nav">
+    <a class="nav-logo" href="#">Drama<em>Forge</em></a>
+    <div class="nav-right">
+        <a href="#features" class="nav-pill">功能</a>
+        <a href="#app" class="nav-pill">生成器</a>
+        <button class="nav-cta" onclick="document.getElementById('app').scrollIntoView({behavior:'smooth'})">免费试用</button>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-eyebrow">
+        <span class="dot"></span>
+        AI 驱动 · 已生成 8,000+ 部剧本
+    </div>
+    <h1>
+        <span class="serif">一个灵感</span><br>
+        <span class="rose">生成</span>完整<span class="pink">短剧</span>
+    </h1>
+    <p class="hero-desc">
+        输入故事灵感，AI 在 60 秒内为你生成完整的短剧剧本——含人物设定、分集大纲、场景描写和台词对白。抖音快手短剧编剧的效率神器。
+    </p>
+    <div class="hero-actions">
+        <button class="btn-hero primary" onclick="document.getElementById('app').scrollIntoView({behavior:'smooth'})">开始创作</button>
+        <button class="btn-hero ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">了解更多</button>
+    </div>
+    <div class="hero-metrics">
+        <div class="metric">
+            <div class="metric-val mv-1">60s</div>
+            <div class="metric-label">生成速度</div>
+        </div>
+        <div class="metric">
+            <div class="metric-val mv-2">8</div>
+            <div class="metric-label">剧本类型</div>
+        </div>
+        <div class="metric">
+            <div class="metric-val mv-3">20集</div>
+            <div class="metric-label">最大集数</div>
+        </div>
+    </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee">
+    <div class="marquee-track">
+        <span class="marquee-item">甜宠爱情<span class="sep"></span></span>
+        <span class="marquee-item">悬疑推理<span class="sep"></span></span>
+        <span class="marquee-item">搞笑喜剧<span class="sep"></span></span>
+        <span class="marquee-item">玄幻仙侠<span class="sep"></span></span>
+        <span class="marquee-item">都市情感<span class="sep"></span></span>
+        <span class="marquee-item">重生逆袭<span class="sep"></span></span>
+        <span class="marquee-item">复仇爽文<span class="sep"></span></span>
+        <span class="marquee-item">霸道总裁<span class="sep"></span></span>
+        <span class="marquee-item">甜宠爱情<span class="sep"></span></span>
+        <span class="marquee-item">悬疑推理<span class="sep"></span></span>
+        <span class="marquee-item">搞笑喜剧<span class="sep"></span></span>
+        <span class="marquee-item">玄幻仙侠<span class="sep"></span></span>
+        <span class="marquee-item">都市情感<span class="sep"></span></span>
+        <span class="marquee-item">重生逆袭<span class="sep"></span></span>
+        <span class="marquee-item">复仇爽文<span class="sep"></span></span>
+        <span class="marquee-item">霸道总裁<span class="sep"></span></span>
+    </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+    <div class="sec-eyebrow se-rose">Features</div>
+    <h2 class="sec-heading">不只是大纲，<br>是你的AI编剧搭档</h2>
+    <div class="feat-grid">
+        <div class="feat-card"><div class="feat-inner"><div class="feat-ic fi-1">🎬</div><h3>完整剧本</h3><p>人物设定、分集大纲、场景描写、台词对白，一次生成完整可用的剧本。</p></div></div>
+        <div class="feat-card"><div class="feat-inner"><div class="feat-ic fi-2">🎭</div><h3>8大热门类型</h3><p>甜宠、悬疑、喜剧、仙侠、都市、重生、复仇、总裁，覆盖抖音快手热门赛道。</p></div></div>
+        <div class="feat-card"><div class="feat-inner"><div class="feat-ic fi-3">🪝</div><h3>钩子结构</h3><p>每集结尾自动设置悬念钩子，让观众忍不住追下一集，完播率拉满。</p></div></div>
+        <div class="feat-card"><div class="feat-inner"><div class="feat-ic fi-4">💬</div><h3>网感台词</h3><p>对话简短有力，金句频出，适合竖屏短剧的观看习惯。</p></div></div>
+        <div class="feat-card"><div class="feat-inner"><div class="feat-ic fi-5">👥</div><h3>人物小传</h3><p>自动生成角色卡片，性格、背景、人物关系一目了然。</p></div></div>
+        <div class="feat-card"><div class="feat-inner"><div class="feat-ic fi-6">📋</div><h3>一键导出</h3><p>复制全部或导出 Markdown，直接发给导演和演员使用。</p></div></div>
+    </div>
+</section>
+
+<!-- APP -->
+<section class="app-section" id="app">
+    <div class="app-header">
+        <div class="sec-eyebrow" style="color:var(--pink)">Generator</div>
+        <h2>生成你的短剧剧本</h2>
+        <p>选择类型，输入灵感，一键生成完整剧本</p>
+    </div>
+
+    <!-- 类型选择 -->
+    <div class="genre-grid">
+        <button class="genre-btn on" data-genre="romance" onclick="pickGenre(this)"><span class="gi">💕</span>甜宠爱情</button>
+        <button class="genre-btn" data-genre="suspense" onclick="pickGenre(this)"><span class="gi">🔍</span>悬疑推理</button>
+        <button class="genre-btn" data-genre="comedy" onclick="pickGenre(this)"><span class="gi">😂</span>搞笑喜剧</button>
+        <button class="genre-btn" data-genre="fantasy" onclick="pickGenre(this)"><span class="gi">⚔️</span>玄幻仙侠</button>
+        <button class="genre-btn" data-genre="urban" onclick="pickGenre(this)"><span class="gi">🏙️</span>都市情感</button>
+        <button class="genre-btn" data-genre="rebirth" onclick="pickGenre(this)"><span class="gi">🔄</span>重生逆袭</button>
+        <button class="genre-btn" data-genre="revenge" onclick="pickGenre(this)"><span class="gi">🔥</span>复仇爽文</button>
+        <button class="genre-btn" data-genre="ceo" onclick="pickGenre(this)"><span class="gi">👑</span>霸道总裁</button>
+    </div>
+
+    <div class="editor-wrap">
+        <div class="fg">
+            <label class="fl">剧本主题/灵感 <span class="req">*</span></label>
+            <input class="fi" id="topic" placeholder="例：女主穿越到古代成为废柴王妃，靠现代知识逆袭翻盘" maxlength="200">
+        </div>
+        <div class="form-grid">
+            <div class="fg">
+                <label class="fl">集数</label>
+                <select class="fs" id="episodes">
+                    <option value="3">3 集（试水版）</option>
+                    <option value="5" selected>5 集（标准版）</option>
+                    <option value="8">8 集（完整版）</option>
+                    <option value="10">10 集（长剧版）</option>
+                    <option value="15">15 集（连载版）</option>
+                    <option value="20">20 集（大制作）</option>
+                </select>
+            </div>
+            <div class="fg">
+                <label class="fl">目标受众</label>
+                <select class="fs" id="audience">
+                    <option value="18-25岁女性">18-25岁女性</option>
+                    <option value="25-35岁女性">25-35岁女性</option>
+                    <option value="18-30岁男性">18-30岁男性</option>
+                    <option value="全年龄段">全年龄段</option>
+                </select>
+            </div>
+        </div>
+        <div class="fg">
+            <label class="fl">补充要求（可选）</label>
+            <textarea class="ft" id="extra" placeholder="例：要有穿越元素，女主要聪明但不是圣母，男主表面冷酷实际深情，多安排打脸名场面……" maxlength="300"></textarea>
+        </div>
+        <div class="gen-row">
+            <div>
+                <div class="price"><span class="c">¥</span><span class="a">8</span><span class="u">/ 次</span></div>
+                <div class="trial">新用户免费 <b id="freeCount">3</b> 次</div>
+            </div>
+            <button class="btn-gen" id="genBtn" onclick="handleGen()">
+                <span class="sp"></span>
+                <span class="bt">🎬 生成剧本</span>
+                <span class="lt">AI 编剧中…</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result-area" id="resultArea"></div>
+</section>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-bg" id="payModal" onclick="if(event.target===this)closeM()">
+    <div class="modal-box">
+        <div class="modal-ic">📱</div>
+        <h3>扫码支付</h3>
+        <p>扫描下方支付宝二维码完成付款</p>
+        <div class="qr-box">
+            <img src="1777827107878.jpg" alt="支付宝收款码"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+            <div class="qr-err"><span class="qe">📱</span><span>收款码加载失败</span><span>请上传收款码图片</span></div>
+        </div>
+        <div class="modal-price"><span class="y">¥</span>8</div>
+        <div class="pay-note">
+            <p>💡 付款时请备注订单号：</p>
+            <p class="oid" id="orderId">---</p>
+            <p class="ptip">备注订单号可加快确认速度</p>
+        </div>
+        <div class="pay-st" id="paySt"><span class="cs"></span><span id="payStText"></span></div>
+        <button class="btn-pay" id="btnPay" onclick="confirmPay()">✅ 我已付款</button>
+        <button class="btn-cancel" onclick="closeM()">取消</button>
+    </div>
+</div>
+
+<footer><p>DramaForge &copy; 2024 — AI 驱动的短剧剧本生成器</p></footer>
+
+<script>
+    var EP = '/api/script';
+    var FL = 3;
+    var curGenre = 'romance';
+    var curScript = null;
+    var curRaw = '';
+    var used = parseInt(localStorage.getItem('df_t') || '0');
+
+    document.getElementById('freeCount').textContent = Math.max(0, FL - used);
+
+    function pickGenre(el) {
+        document.querySelectorAll('.genre-btn').forEach(function(b) { b.classList.remove('on'); });
+        el.classList.add('on');
+        curGenre = el.dataset.genre;
+    }
+
+    function toast(m, t) {
+        t = t || 'error';
+        var d = document.getElementById('toast');
+        d.textContent = m;
+        d.className = 'toast show ' + (t === 'ok' ? 'ok' : '');
+        setTimeout(function() { d.className = 'toast'; }, 3000);
+    }
+
+    function mkOrder() {
+        var n = new Date();
+        var ts = n.getFullYear().toString().slice(2) + String(n.getMonth()+1).padStart(2,'0') + String(n.getDate()).padStart(2,'0') + String(n.getHours()).padStart(2,'0') + String(n.getMinutes()).padStart(2,'0');
+        return 'DF' + ts + Math.random().toString(36).substring(2,6).toUpperCase();
+    }
+
+    function handleGen() {
+        var t = document.getElementById('topic').value.trim();
+        if (!t) {
+            document.getElementById('topic').style.borderColor = 'var(--danger)';
+            document.getElementById('topic').focus();
+            setTimeout(function() { document.getElementById('topic').style.borderColor = ''; }, 2000);
+            toast('请输入剧本主题/灵感');
+            return;
+        }
+        if (used < FL) { doGen(); }
+        else {
+            document.getElementById('orderId').textContent = mkOrder();
+            document.getElementById('paySt').className = 'pay-st';
+            document.getElementById('payStText').textContent = '';
+            document.getElementById('btnPay').disabled = false;
+            document.getElementById('payModal').classList.add('show');
+        }
+    }
+
+    function closeM() { document.getElementById('payModal').classList.remove('show'); }
+
+    function confirmPay() {
+        document.getElementById('btnPay').disabled = true;
+        document.getElementById('paySt').className = 'pay-st ck';
+        document.getElementById('payStText').textContent = '正在验证付款…';
+        setTimeout(function() {
+            document.getElementById('paySt').className = 'pay-st';
+            document.getElementById('payStText').textContent = '';
+            closeM();
+            toast('付款确认成功', 'ok');
+            setTimeout(function() { doGen(); }, 500);
+        }, 1500);
+    }
+
+    async function doGen() {
+        var btn = document.getElementById('genBtn');
+        btn.classList.add('ld'); btn.disabled = true;
+        try {
+            var r = await fetch(EP, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic: document.getElementById('topic').value.trim(),
+                    genre: curGenre,
+                    episodes: document.getElementById('episodes').value,
+                    audience: document.getElementById('audience').value,
+                    extra: document.getElementById('extra').value.trim()
+                })
+            });
+            var d = await r.json();
+            if (!r.ok) throw new Error(d.error || '请求失败');
+            if (d.success && d.script) {
+                curScript = d.script;
+                curRaw = mkRaw(d.script);
+                renderScript(d.script);
+                if (used < FL) { used++; localStorage.setItem('df_t', used); document.getElementById('freeCount').textContent = Math.max(0, FL - used); }
+                toast('剧本生成成功', 'ok');
+            } else { throw new Error('数据异常'); }
+        } catch(e) { toast(e.message); }
+        finally { btn.classList.remove('ld'); btn.disabled = false; }
+    }
+
+    function escHtml(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
+
+    function renderScript(s) {
+        var area = document.getElementById('resultArea');
+        var colors = ['epn-rose','epn-pink','epn-amber','epn-violet','epn-cyan'];
+        var html = '';
+
+        // Header
+        html += '<div class="script-header">';
+        html += '<div class="script-title">' + escHtml(s.title) + '</div>';
+        if (s.tagline) html += '<div class="script-tagline">「' + escHtml(s.tagline) + '」</div>';
+        if (s.synopsis) html += '<div class="script-synopsis">' + escHtml(s.synopsis) + '</div>';
+        html += '<div class="script-actions">';
+        html += '<button class="btn-s" id="cpBtn" onclick="cpScript()">📋 复制全部</button>';
+        html += '<button class="btn-s" onclick="expMD()">📥 导出 MD</button>';
+        html += '<button class="btn-s" onclick="handleGen()">🔄 重新生成</button>';
+        html += '</div></div>';
+
+        // Characters
+        if (s.characters && s.characters.length > 0) {
+            html += '<div class="characters-section"><div class="char-title">👥 人物设定</div><div class="char-grid">';
+            s.characters.forEach(function(c) {
+                var roleClass = c.role && c.role.includes('反派') ? 'role-villain' : (c.role && (c.role.includes('配角') || c.role.includes('辅')) ? 'role-side' : 'role-main');
+                html += '<div class="char-card">';
+                html += '<div class="char-name">' + escHtml(c.name) + '</div>';
+                html += '<span class="char-role ' + roleClass + '">' + escHtml(c.role || '主角') + '</span>';
+                html += '<div class="char-desc">' + escHtml(c.desc) + '</div>';
+                html += '</div>';
+            });
+            html += '</div></div>';
+        }
+
+        // Episodes
+        if (s.episodes && s.episodes.length > 0) {
+            s.episodes.forEach(function(ep, idx) {
+                var c = colors[idx % colors.length];
+                html += '<div class="episode-card">';
+                html += '<div class="ep-head">';
+                html += '<div class="ep-title-wrap"><span class="ep-num ' + c + '">' + String(ep.number || idx+1).padStart(2,'0') + '</span><span class="ep-title">' + escHtml(ep.title) + '</span></div>';
+                html += '<div class="ep-meta"><span class="ep-duration">⏱ ' + escHtml(ep.duration || '1-2分钟') + '</span></div>';
+                html += '</div>';
+
+                if (ep.hook) html += '<div class="ep-hook">' + escHtml(ep.hook) + '</div>';
+
+                if (ep.scenes && ep.scenes.length > 0) {
+                    ep.scenes.forEach(function(sc) {
+                        html += '<div class="scene-block">';
+                        if (sc.setting) html += '<div class="scene-setting">' + escHtml(sc.setting) + '</div>';
+                        if (sc.action) html += '<div class="scene-action">' + escHtml(sc.action) + '</div>';
+                        if (sc.dialogue && sc.dialogue.length > 0) {
+                            sc.dialogue.forEach(function(d) {
+                                html += '<div class="dialogue-item">';
+                                html += '<div class="d-char">' + escHtml(d.character) + '</div>';
+                                html += '<div class="d-content"><div class="d-line">「' + escHtml(d.line) + '」</div>';
+                                if (d.emotion) html += '<div class="d-emotion">(' + escHtml(d.emotion) + ')</div>';
+                                html += '</div></div>';
+                            });
+                        }
+                        html += '</div>';
+                    });
+                }
+
+                html += '</div>';
+            });
+        }
+
+        area.innerHTML = html;
+        area.classList.add('show');
+        setTimeout(function() { area.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+    }
+
+    function mkRaw(s) {
+        var x = s.title + '\n';
+        if (s.tagline) x += '「' + s.tagline + '」\n';
+        x += '═'.repeat(40) + '\n\n';
+        if (s.synopsis) x += '【剧情梗概】\n' + s.synopsis + '\n\n';
+        if (s.characters && s.characters.length) {
+            x += '【人物设定】\n';
+            s.characters.forEach(function(c) { x += c.name + '（' + (c.role||'主角') + '）：' + c.desc + '\n'; });
+            x += '\n';
+        }
+        if (s.episodes) {
+            s.episodes.forEach(function(ep) {
+                x += '━━━ 第' + (ep.number||0) + '集：' + ep.title + ' [' + (ep.duration||'') + '] ━━━\n';
+                if (ep.hook) x += '🪝 钩子：' + ep.hook + '\n';
+                if (ep.scenes) {
+                    ep.scenes.forEach(function(sc) {
+                        if (sc.setting) x += '\n🎬 ' + sc.setting + '\n';
+                        if (sc.action) x += '[画面] ' + sc.action + '\n';
+                        if (sc.dialogue) sc.dialogue.forEach(function(d) {
+                            x += d.character + '（' + (d.emotion||'') + '）：' + d.line + '\n';
+                        });
+                    });
+                }
+                x += '\n';
+            });
+        }
+        return x;
+    }
+
+    function cpScript() {
+        if (!curRaw) return;
+        navigator.clipboard.writeText(curRaw).then(function() {
+            var b = document.getElementById('cpBtn');
+            b.classList.add('cp'); b.textContent = '✓ 已复制';
+            setTimeout(function() { b.classList.remove('cp'); b.textContent = '📋 复制全部'; }, 2000);
+        });
+    }
+
+    function expMD() {
+        if (!curScript) return;
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([curRaw], { type: 'text/markdown' }));
+        a.download = (curScript.title || '短剧剧本') + '.md';
+        a.click();
+        toast('已下载', 'ok');
+    }
+
+    var obs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(e) { if (e.isIntersecting) { e.target.classList.add('vis'); obs.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.feat-card').forEach(function(c, i) { c.style.transitionDelay = (i*0.1)+'s'; obs.observe(c); });
+</script>
+
+</body>
+</html>
